@@ -366,6 +366,32 @@ export const handleMessage = async (
       break;
     }
 
+    case "Get_Name":{
+      const {peerId} = data
+      if(!peerId){
+        sendError(ws,"peerId msiising",msgId)
+        return;
+      }
+      const roomId = ws.roomId;
+      if (!roomId || !ws.peerId) {
+        return;
+      }
+
+      const room = getRoom(ws, roomId);
+      if (!room) return;
+
+      const peer = room.peers.get(peerId);
+      if (!peer) return;
+      const name = peer.ws.username
+
+      ws.send(JSON.stringify({
+        type : "PEER_NAME",
+        msgId,
+        data:{
+          name:name ?? "error in finding name"
+        }
+      }))
+    }
     case "LEAVE_ROOM": {
       const { roomId } = data || {};
 

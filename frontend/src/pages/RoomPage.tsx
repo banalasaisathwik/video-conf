@@ -16,6 +16,7 @@ import {
   unsubscribe,
 } from "../services/socket";
 import { RemoteVideo } from "../component/RemoteVideo";
+import { Chat } from "../component/Chat";
 
 interface CreateTransportResponse {
   id: string;
@@ -465,7 +466,22 @@ const RoomPage = () => {
     if (!roomId) {
       return;
     }
-
+    localStreamRef.current?.getTracks().forEach((track) => {
+      track.stop();
+    });
+    localStreamRef.current?.getTracks().forEach((track) => {
+      track.stop();
+    });
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    localStreamRef.current = null;
+    screenStreamRef.current = null;
+    videoProducerRef.current = null;
+    audioProducerRef.current = null;
     await leaveRoom(roomId);
     navigate("/");
   }
@@ -474,106 +490,105 @@ const RoomPage = () => {
     return null;
   }
 
+  
+  function getGridCols(count: number) {
+    if (count <= 1) return "grid-cols-1";
+    if (count === 2) return "grid-cols-2";
+    if (count <= 4) return "grid-cols-2";
+    if (count <= 6) return "grid-cols-3";
+    return "grid-cols-4";
+  }
+
   return (
-    <div
-      style={{
-        background: "#f3f4f6",
-        minHeight: "100vh",
-        padding: "24px",
-      }}
-    >
-      <div
-        style={{
-          margin: "0 auto",
-          maxWidth: "1200px",
-        }}
-      >
-        <div style={{ marginBottom: "20px" }}>
-          <h1 style={{ color: "#111827", margin: 0 }}>
-            {name} in room {roomId}
-          </h1>
-          <p style={{ color: "#6b7280", margin: "8px 0 0" }}>
-            Participants: {participants.join(", ") || "No other participants"}
-          </p>
+    <div className="h-screen flex flex-col bg-gray-100">
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex-1 p-4 overflow-auto">
+          <div
+            className={`grid gap-4 h-full ${getGridCols(remoteStreams.length)}`}
+          >
+            {remoteStreams.map((item, index) => (
+              <div
+                key={item.id}
+                className="bg-white border rounded p-2 flex flex-col"
+              >
+                <p className="text-sm mb-2">
+                  getName(item.id) user-{index + 1}
+                </p>
+
+                <div className="flex-1 bg-black rounded overflow-hidden">
+                  <RemoteVideo
+                    stream={item.stream}
+                    isAudioEnabled={item.isAudioEnabled}
+                    isVideoEnabled={item.isVideoEnabled}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gap: "16px",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-          }}
-        >
-          <div
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e5e7eb",
-              borderRadius: "16px",
-              padding: "12px",
-            }}
-          >
-            <h3 style={{ color: "#111827", margin: "0 0 12px" }}>
-              {name} (You)
-            </h3>
-            <video
-              ref={localVideoRef}
-              autoPlay
-              muted
-              playsInline
-              style={{
-                background: "#111827",
-                borderRadius: "12px",
-                height: "220px",
-                objectFit: "cover",
-                width: "100%",
-              }}
-            />
-            <p style={{ color: "#4b5563", margin: "8px 0 0" }}>
-              {isAudioEnabled ? "Audio on" : "Audio stopped"}
-            </p>
+        <div className="w-[35%] border-l bg-white p-4 flex flex-col">
+          <div className="h-[40%] mb-4">
+            <p className="text-sm mb-2">You</p>
+
+            <div className="h-full bg-black rounded overflow-hidden relative">
+              <video
+                ref={localVideoRef}
+                autoPlay
+                muted
+                playsInline
+                className={`w-full h-full object-cover ${
+                  !isVideoEnabled || isScreenSharing ? "hidden" : ""
+                }`}
+              />
+
+              {!isVideoEnabled && (
+                <div className="absolute inset-0 flex items-center justify-center text-white text-sm">
+                  Video Off
+                </div>
+              )}
+              {isScreenSharing && (
+                <div className="absolute inset-0 flex items-center justify-center text-white text-sm">
+                  Screen Sharing
+                </div>
+              )}
+            </div>
           </div>
 
-          {remoteStreams.map((item, index) => (
-            <div
-              key={item.id}
-              style={{
-                background: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: "16px",
-                padding: "12px",
-              }}
-            >
-              <h3 style={{ color: "#111827", margin: "0 0 12px" }}>
-                Participant {index + 1}
-              </h3>
-              <RemoteVideo
-                stream={item.stream}
-                isAudioEnabled={item.isAudioEnabled}
-                isVideoEnabled={item.isVideoEnabled}
-              />
-            </div>
-          ))}
+          <div className="flex-1 overflow-hidden">
+            <Chat />
+          </div>
         </div>
+      </div>
 
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "12px",
-            marginTop: "20px",
-          }}
+      <div className="h-[60px] bg-white border-t flex items-center justify-center gap-4">
+        <button
+          onClick={handleToggleVideo}
+          className="px-4 py-1 border rounded"
         >
-          <button onClick={handleToggleVideo}>
-            {isVideoEnabled ? "Stop My Video" : "Start My Video"}
-          </button>
-          <button onClick={handleToggleAudio}>
-            {isAudioEnabled ? "Stop My Audio" : "Start My Audio"}
-          </button>
-          <button onClick={handleScreenShare}>
-            {isScreenSharing ? "Stop Screen Share" : "Screen Share"}
-          </button>
-          <button onClick={handleLeave}>Leave</button>
-        </div>
+          {isVideoEnabled ? "Stop Video" : "Start Video"}
+        </button>
+
+        <button
+          onClick={handleToggleAudio}
+          className="px-4 py-1 border rounded"
+        >
+          {isAudioEnabled ? "Mute" : "Unmute"}
+        </button>
+
+        <button
+          onClick={handleScreenShare}
+          className="px-4 py-1 border rounded"
+        >
+          {isScreenSharing ? "Stop Share" : "Share Screen"}
+        </button>
+
+        <button
+          onClick={handleLeave}
+          className="px-4 py-1 border rounded text-red-500"
+        >
+          Leave
+        </button>
       </div>
     </div>
   );

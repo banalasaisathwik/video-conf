@@ -1,60 +1,45 @@
 import { useEffect, useRef } from "react";
 
-interface RemoteVideoProps {
+interface Props {
   stream: MediaStream;
-  isVideoEnabled: boolean;
   isAudioEnabled: boolean;
+  isVideoEnabled: boolean;
 }
 
-export function RemoteVideo({
-  stream,
-  isVideoEnabled,
-  isAudioEnabled,
-}: RemoteVideoProps) {
+const RemoteVideo = ({ stream, isAudioEnabled, isVideoEnabled }: Props) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.srcObject = stream;
     }
-  }, [stream, isVideoEnabled]);
+  }, [stream]);
 
   return (
-    <>
+    <div className="w-full h-full relative bg-black rounded overflow-hidden">
+
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        style={{
-          background: "#111827",
-          borderRadius: "12px",
-          display: isVideoEnabled ? "block" : "none",
-          height: "220px",
-          objectFit: "cover",
-          width: "100%",
-        }}
+        className={`w-full h-full object-cover ${
+          !isVideoEnabled ? "hidden" : ""
+        }`}
       />
 
       {!isVideoEnabled && (
-        <div
-          style={{
-            alignItems: "center",
-            background: "#111827",
-            borderRadius: "12px",
-            color: "#f9fafb",
-            display: "flex",
-            height: "220px",
-            justifyContent: "center",
-            width: "100%",
-          }}
-        >
-          Video stopped
+        <div className="absolute inset-0 flex items-center justify-center text-white text-sm">
+          Video Off
         </div>
       )}
 
-      <p style={{ color: "#4b5563", margin: "8px 0 0" }}>
-        {isAudioEnabled ? "Audio on" : "Audio stopped"}
-      </p>
-    </>
+      {!isAudioEnabled && (
+        <div className="absolute bottom-1 left-1 text-xs bg-white px-1 rounded">
+          Muted
+        </div>
+      )}
+    </div>
   );
-}
+};
+
+export { RemoteVideo };
