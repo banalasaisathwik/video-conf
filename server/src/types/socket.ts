@@ -8,6 +8,10 @@ interface Peer {
   recvTransport?: mediasoup.types.WebRtcTransport; 
   producers: Map<string, mediasoup.types.Producer>;
   consumers: Map<string, mediasoup.types.Consumer>;
+  mediaState: {
+    audioEnabled: boolean;
+    videoEnabled: boolean;
+  };
 }
 
 interface ExtendedWebSocket extends WebSocket {

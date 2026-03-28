@@ -184,7 +184,7 @@ export const handleMessage = async (
         rtpParameters,
       });
       if (!producer || !producer.id) return;
-      peer.producers.set(producer?.id, producer);
+      peer.producers.set(producer.id, producer);
 
       ws.send(
         JSON.stringify({
@@ -192,18 +192,23 @@ export const handleMessage = async (
           msgId,
           data: {
             id: producer.id,
+            kind: producer.kind,
           },
         }),
       );
 
       room?.peers.forEach((otherPeer) => {
-        if (otherPeer.id !== ws.peerId && otherPeer.ws.readyState === WebSocket.OPEN) {
+        if (
+          otherPeer.id !== ws.peerId &&
+          otherPeer.ws.readyState === WebSocket.OPEN
+        ) {
           otherPeer.ws.send(
             JSON.stringify({
               type: "NEW_PRODUCER",
               data: {
-                peerId : peer.id,
+                peerId: peer.id,
                 producerId: producer.id,
+                kind: producer.kind,
               },
             }),
           );
@@ -220,18 +225,27 @@ export const handleMessage = async (
       const room = getRoom(ws, roomId);
       if (!ws.peerId) return;
 
-const producerIds: { producerId: string; peerId: string }[] = [];
+      const producerIds: { producerId: string; peerId: string }[] = [];
+      const peerMediaStates: Record<
+        string,
+        { audioEnabled: boolean; videoEnabled: boolean }
+      > = {};
 
       room?.peers.forEach((otherPeer) => {
         if (otherPeer.id === ws.peerId) {
           return;
         }
 
+        peerMediaStates[otherPeer.id] = {
+          audioEnabled: otherPeer.mediaState.audioEnabled,
+          videoEnabled: otherPeer.mediaState.videoEnabled,
+        };
+
         otherPeer.producers.forEach((producer) => {
           producerIds.push({
-      producerId: producer.id,
-      peerId: otherPeer.id
-    });
+            producerId: producer.id,
+            peerId: otherPeer.id,
+          });
         });
       });
 
@@ -241,6 +255,7 @@ const producerIds: { producerId: string; peerId: string }[] = [];
           msgId,
           data: {
             producers: producerIds,
+            peerMediaStates,
           },
         }),
       );
@@ -294,6 +309,63 @@ const producerIds: { producerId: string; peerId: string }[] = [];
       );
       break;
     }
+
+    case "updateMediaState": {
+      const { kind, enabled } = data || {};
+      if ((kind !== "audio" && kind !== "video") || typeof enabled !== "boolean") {
+        sendError(ws, "invalid media state payload", msgId);
+        return;
+      }
+
+      const roomId = ws.roomId;
+      if (!roomId || !ws.peerId) {
+        return;
+      }
+
+      const room = getRoom(ws, roomId);
+      if (!room) return;
+
+      const peer = room.peers.get(ws.peerId);
+      if (!peer) return;
+
+      if (kind === "audio") {
+        peer.mediaState.audioEnabled = enabled;
+      } else {
+        peer.mediaState.videoEnabled = enabled;
+      }
+
+      room.peers.forEach((otherPeer) => {
+        if (
+          otherPeer.id !== ws.peerId &&
+          otherPeer.ws.readyState === WebSocket.OPEN
+        ) {
+          otherPeer.ws.send(
+            JSON.stringify({
+              type: "MEDIA_STATE_UPDATED",
+              data: {
+                peerId: peer.id,
+                kind,
+                enabled,
+              },
+            }),
+          );
+        }
+      });
+
+      ws.send(
+        JSON.stringify({
+          type: "mediaStateUpdated",
+          msgId,
+          data: {
+            peerId: peer.id,
+            kind,
+            enabled,
+          },
+        }),
+      );
+      break;
+    }
+
     case "LEAVE_ROOM": {
       const { roomId } = data || {};
 

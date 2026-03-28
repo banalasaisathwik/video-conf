@@ -142,20 +142,24 @@ export const handleMessage = async (message, ws) => {
             });
             if (!producer || !producer.id)
                 return;
-            peer.producers.set(producer?.id, producer);
+            peer.producers.set(producer.id, producer);
             ws.send(JSON.stringify({
                 type: "producerCreated",
                 msgId,
                 data: {
                     id: producer.id,
+                    kind: producer.kind,
                 },
             }));
             room?.peers.forEach((otherPeer) => {
-                if (otherPeer.id !== ws.peerId && otherPeer.ws.readyState === WebSocket.OPEN) {
+                if (otherPeer.id !== ws.peerId &&
+                    otherPeer.ws.readyState === WebSocket.OPEN) {
                     otherPeer.ws.send(JSON.stringify({
                         type: "NEW_PRODUCER",
                         data: {
+                            peerId: peer.id,
                             producerId: producer.id,
+                            kind: producer.kind,
                         },
                     }));
                 }
@@ -170,12 +174,20 @@ export const handleMessage = async (message, ws) => {
             if (!ws.peerId)
                 return;
             const producerIds = [];
+            const peerMediaStates = {};
             room?.peers.forEach((otherPeer) => {
                 if (otherPeer.id === ws.peerId) {
                     return;
                 }
+                peerMediaStates[otherPeer.id] = {
+                    audioEnabled: otherPeer.mediaState.audioEnabled,
+                    videoEnabled: otherPeer.mediaState.videoEnabled,
+                };
                 otherPeer.producers.forEach((producer) => {
-                    producerIds.push(producer.id);
+                    producerIds.push({
+                        producerId: producer.id,
+                        peerId: otherPeer.id,
+                    });
                 });
             });
             ws.send(JSON.stringify({
@@ -183,6 +195,7 @@ export const handleMessage = async (message, ws) => {
                 msgId,
                 data: {
                     producers: producerIds,
+                    peerMediaStates,
                 },
             }));
             break;
@@ -222,6 +235,52 @@ export const handleMessage = async (message, ws) => {
                     producerId,
                     kind: consumer.kind,
                     rtpParameters: consumer.rtpParameters,
+                },
+            }));
+            break;
+        }
+        case "updateMediaState": {
+            const { kind, enabled } = data || {};
+            if ((kind !== "audio" && kind !== "video") || typeof enabled !== "boolean") {
+                sendError(ws, "invalid media state payload", msgId);
+                return;
+            }
+            const roomId = ws.roomId;
+            if (!roomId || !ws.peerId) {
+                return;
+            }
+            const room = getRoom(ws, roomId);
+            if (!room)
+                return;
+            const peer = room.peers.get(ws.peerId);
+            if (!peer)
+                return;
+            if (kind === "audio") {
+                peer.mediaState.audioEnabled = enabled;
+            }
+            else {
+                peer.mediaState.videoEnabled = enabled;
+            }
+            room.peers.forEach((otherPeer) => {
+                if (otherPeer.id !== ws.peerId &&
+                    otherPeer.ws.readyState === WebSocket.OPEN) {
+                    otherPeer.ws.send(JSON.stringify({
+                        type: "MEDIA_STATE_UPDATED",
+                        data: {
+                            peerId: peer.id,
+                            kind,
+                            enabled,
+                        },
+                    }));
+                }
+            });
+            ws.send(JSON.stringify({
+                type: "mediaStateUpdated",
+                msgId,
+                data: {
+                    peerId: peer.id,
+                    kind,
+                    enabled,
                 },
             }));
             break;

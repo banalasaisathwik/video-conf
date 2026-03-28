@@ -37,6 +37,10 @@ async function addToRoom(ws: ExtendedWebSocket, roomId: string) {
     ws: ws,
     producers: new Map(),
     consumers: new Map(),
+    mediaState: {
+      audioEnabled: true,
+      videoEnabled: true,
+    },
   };
 
   room.peers.set(peerId, newPeer);

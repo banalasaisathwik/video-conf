@@ -31,6 +31,10 @@ async function addToRoom(ws, roomId) {
         ws: ws,
         producers: new Map(),
         consumers: new Map(),
+        mediaState: {
+            audioEnabled: true,
+            videoEnabled: true,
+        },
     };
     room.peers.set(peerId, newPeer);
     ws.roomId = roomId;
