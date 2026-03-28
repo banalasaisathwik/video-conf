@@ -4,11 +4,16 @@ import { safeParse } from "./utils/validate.js";
 import { handleMessage } from "./handler/messageHandler.js";
 import { handleLeave } from "./utils/helpers.js";
 import { startWorker } from "./utils/mediaSoup.js";
+import http from "http";
+import express from "express";
 
 async function main() {
   await startWorker();
 
-  const wss = new WebSocketServer({ port: 8080 });
+const app = express();
+const server = http.createServer(app);
+
+const wss = new WebSocketServer({ server });
 
   wss.on("connection", (ws: ExtendedWebSocket) => {
     console.log("ws connection created");

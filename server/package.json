@@ -14,11 +14,13 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "express": "^5.2.1",
     "mediasoup": "^3.19.18",
     "typescript": "^5.9.3",
     "ws": "^8.19.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^25.5.0",
     "@types/ws": "^8.18.1",
     "tsx": "^4.21.0"

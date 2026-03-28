@@ -4,6 +4,7 @@ let isInitialized = false;
 
 const listeners = new Set<(data: any) => void>();
 const pendingRequests = new Map<string, (data: any) => void>();
+const url = import.meta.env.VITE_WEBSOCKET_URL
 
 export function connect() {
   if (isInitialized) {
@@ -15,7 +16,7 @@ export function connect() {
 
   console.log("CONNECT CALLED");
 
-  ws = new WebSocket("ws://localhost:8080");
+  ws = new WebSocket(url);
 
   ws.onopen = () => {
     console.log("websocket connected");
