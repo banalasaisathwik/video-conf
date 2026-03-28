@@ -2,6 +2,9 @@ import WebSocket from "ws";
 import { addToRoom, getRoom } from "../data/space.js";
 import { sendError } from "../utils/error.js";
 import { handleLeave } from "../utils/helpers.js";
+const announcedIp = process.env.MEDIASOUP_ANNOUNCED_IP ||
+    process.env.PUBLIC_HOST ||
+    (process.env.FLY_APP_NAME ? `${process.env.FLY_APP_NAME}.fly.dev` : undefined);
 export const handleMessage = async (message, ws) => {
     const { type, msgId, data } = message;
     switch (type) {
@@ -71,7 +74,11 @@ export const handleMessage = async (message, ws) => {
             const room = getRoom(ws, roomId);
             const router = room?.router;
             const transport = await router?.createWebRtcTransport({
-                listenIps: [{ ip: "127.0.0.1", announcedIp: "127.0.0.1" }],
+                listenIps: [
+                    announcedIp
+                        ? { ip: "0.0.0.0", announcedIp }
+                        : { ip: "0.0.0.0" },
+                ],
                 enableUdp: true,
                 enableTcp: true,
                 preferUdp: true,

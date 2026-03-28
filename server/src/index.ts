@@ -10,10 +10,16 @@ import express from "express";
 async function main() {
   await startWorker();
 
-const app = express();
-const server = http.createServer(app);
+  const app = express();
+  const server = http.createServer(app);
+  const port = Number(process.env.PORT || 8080);
+  const host = "0.0.0.0";
 
-const wss = new WebSocketServer({ server });
+  app.get("/", (_req, res) => {
+    res.status(200).send("ok");
+  });
+
+  const wss = new WebSocketServer({ server });
 
   wss.on("connection", (ws: ExtendedWebSocket) => {
     console.log("ws connection created");
@@ -40,11 +46,17 @@ const wss = new WebSocketServer({ server });
     });
 
     ws.on("close", () => {
-      handleLeave(ws)
+      handleLeave(ws);
       console.log("client left");
     });
+  });
 
+  server.listen(port, host, () => {
+    console.log(`Server listening on ${host}:${port}`);
   });
 }
 
-main();
+main().catch((error) => {
+  console.error("server startup failed", error);
+  process.exit(1);
+});

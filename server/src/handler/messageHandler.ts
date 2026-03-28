@@ -4,6 +4,11 @@ import type { BaseMessage, ExtendedWebSocket } from "../types/socket.js";
 import { sendError } from "../utils/error.js";
 import { handleLeave } from "../utils/helpers.js";
 
+const announcedIp =
+  process.env.MEDIASOUP_ANNOUNCED_IP ||
+  process.env.PUBLIC_HOST ||
+  (process.env.FLY_APP_NAME ? `${process.env.FLY_APP_NAME}.fly.dev` : undefined);
+
 export const handleMessage = async (
   message: BaseMessage,
   ws: ExtendedWebSocket,
@@ -103,7 +108,11 @@ export const handleMessage = async (
       const router = room?.router;
 
       const transport = await router?.createWebRtcTransport({
-        listenIps: [{ ip: "0.0.0.0", announcedIp: "https://video-conf.fly.dev/" }],
+        listenIps: [
+          announcedIp
+            ? { ip: "0.0.0.0", announcedIp }
+            : { ip: "0.0.0.0" },
+        ],
         enableUdp: true,
         enableTcp: true,
         preferUdp: true,
