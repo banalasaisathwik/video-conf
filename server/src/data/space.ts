@@ -4,7 +4,29 @@ import { worker } from "../utils/mediaSoup.js";
 
 const rooms: Map<string, Room> = new Map();
 
+function cleanupPeer(peer: Peer) {
+  peer.producers.forEach((producer) => producer.close());
+  peer.consumers.forEach((consumer) => consumer.close());
+  peer.sendTransport?.close();
+  peer.recvTransport?.close();
+}
+
+function removeExistingSocketEntries(ws: ExtendedWebSocket) {
+  rooms.forEach((room) => {
+    room.peers.forEach((peer, peerId) => {
+      if (peer.ws !== ws) {
+        return;
+      }
+
+      cleanupPeer(peer);
+      room.peers.delete(peerId);
+    });
+  });
+}
+
 async function addToRoom(ws: ExtendedWebSocket, roomId: string) {
+  removeExistingSocketEntries(ws);
+
   if (!rooms.has(roomId)) {
     const router = await worker.createRouter({
       mediaCodecs: [

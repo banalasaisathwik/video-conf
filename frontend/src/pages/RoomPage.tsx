@@ -39,14 +39,22 @@ interface RemoteStreamItem {
   isVideoEnabled: boolean;
 }
 
+interface ChatMessage {
+  id: string;
+  sender: string;
+  text: string;
+  isOwnMessage: boolean;
+}
+
 const RoomPage = () => {
   const { roomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const name = location.state?.name;
 
-  const [participants, setParticipants] = useState<string[]>([]);
+  const [, setParticipants] = useState<string[]>([]);
   const [remoteStreams, setRemoteStreams] = useState<RemoteStreamItem[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -341,6 +349,27 @@ const RoomPage = () => {
 
         updateRemotePeerMediaState(peerId, kind, enabled);
       }
+
+      if (message.type === "CHAT_MESSAGE") {
+        const { messageId, sender, text, peerId } = message.data ?? {};
+        if (
+          typeof messageId !== "string" ||
+          typeof sender !== "string" ||
+          typeof text !== "string"
+        ) {
+          return;
+        }
+
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: messageId,
+            sender,
+            text,
+            isOwnMessage: peerId === undefined || peerId === null,
+          },
+        ]);
+      }
     };
 
     handlerRef.current = handler;
@@ -381,8 +410,33 @@ const RoomPage = () => {
 
       peersRef.current.clear();
       setRemoteStreams([]);
+      setChatMessages([]);
     };
   }, [roomId, name]);
+
+  async function handleSendChatMessage(text: string) {
+    if (!text.trim()) {
+      return;
+    }
+
+    const response = (await sendRequest("SEND_CHAT_MESSAGE", {
+      text,
+    })) as {
+      messageId: string;
+      sender: string;
+      text: string;
+    };
+
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: response.messageId,
+        sender: response.sender,
+        text: response.text,
+        isOwnMessage: true,
+      },
+    ]);
+  }
 
   async function handleToggleVideo() {
     const videoTrack = localStreamRef.current?.getVideoTracks()[0];
@@ -556,7 +610,10 @@ const RoomPage = () => {
           </div>
 
           <div className="flex-1 overflow-hidden">
-            <Chat />
+            <Chat
+              messages={chatMessages}
+              onSendMessage={handleSendChatMessage}
+            />
           </div>
         </div>
       </div>

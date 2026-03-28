@@ -1,7 +1,25 @@
 import { generatePeerId } from "../utils/helpers.js";
 import { worker } from "../utils/mediaSoup.js";
 const rooms = new Map();
+function cleanupPeer(peer) {
+    peer.producers.forEach((producer) => producer.close());
+    peer.consumers.forEach((consumer) => consumer.close());
+    peer.sendTransport?.close();
+    peer.recvTransport?.close();
+}
+function removeExistingSocketEntries(ws) {
+    rooms.forEach((room) => {
+        room.peers.forEach((peer, peerId) => {
+            if (peer.ws !== ws) {
+                return;
+            }
+            cleanupPeer(peer);
+            room.peers.delete(peerId);
+        });
+    });
+}
 async function addToRoom(ws, roomId) {
+    removeExistingSocketEntries(ws);
     if (!rooms.has(roomId)) {
         const router = await worker.createRouter({
             mediaCodecs: [

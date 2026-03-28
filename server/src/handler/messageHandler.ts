@@ -366,6 +366,66 @@ export const handleMessage = async (
       break;
     }
 
+    case "SEND_CHAT_MESSAGE": {
+      const { text } = data || {};
+      if (typeof text !== "string" || text.trim().length === 0) {
+        sendError(ws, "message text is required", msgId);
+        return;
+      }
+
+      const roomId = ws.roomId;
+      if (!roomId || !ws.peerId) {
+        return;
+      }
+
+      const room = getRoom(ws, roomId);
+      if (!room) {
+        return;
+      }
+
+      const peer = room.peers.get(ws.peerId);
+      if (!peer) {
+        return;
+      }
+
+      const messageId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const normalizedText = text.trim();
+
+      room.peers.forEach((otherPeer) => {
+        if (
+          otherPeer.id === ws.peerId ||
+          otherPeer.ws.readyState !== WebSocket.OPEN
+        ) {
+          return;
+        }
+
+        otherPeer.ws.send(
+          JSON.stringify({
+            type: "CHAT_MESSAGE",
+            data: {
+              messageId,
+              sender: ws.username ?? "Anonymous",
+              text: normalizedText,
+              peerId: peer.id,
+            },
+          }),
+        );
+      });
+
+      ws.send(
+        JSON.stringify({
+          type: "chatMessageSent",
+          msgId,
+          data: {
+            messageId,
+            sender: ws.username ?? "Anonymous",
+            text: normalizedText,
+          },
+        }),
+      );
+      break;
+    }
+
     case "Get_Name":{
       const {peerId} = data
       if(!peerId){
