@@ -103,7 +103,7 @@ export const handleMessage = async (
       const router = room?.router;
 
       const transport = await router?.createWebRtcTransport({
-        listenIps: [{ ip: "127.0.0.1", announcedIp: "127.0.0.1" }],
+        listenIps: [{ ip: "0.0.0.0", announcedIp: "https://video-conf.fly.dev/" }],
         enableUdp: true,
         enableTcp: true,
         preferUdp: true,
