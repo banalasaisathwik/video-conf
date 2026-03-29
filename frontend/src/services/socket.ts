@@ -5,6 +5,25 @@ let isInitialized = false;
 const listeners = new Set<(data: any) => void>();
 const pendingRequests = new Map<string, (data: any) => void>();
 
+function getWebSocketUrl() {
+  const configuredUrl = import.meta.env.VITE_WEBSOCKET_URL?.trim();
+
+  if (configuredUrl) {
+    if (configuredUrl.startsWith("http://")) {
+      return configuredUrl.replace("http://", "ws://");
+    }
+
+    if (configuredUrl.startsWith("https://")) {
+      return configuredUrl.replace("https://", "wss://");
+    }
+
+    return configuredUrl;
+  }
+
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${protocol}://${window.location.host}`;
+}
+
 export function connect() {
   if (isInitialized) {
     console.log("Already connected");
@@ -14,8 +33,10 @@ export function connect() {
   isInitialized = true;
 
   console.log("CONNECT CALLED");
+  const url = getWebSocketUrl();
 
-  ws = new WebSocket("ws://localhost:8080");
+
+  ws = new WebSocket(url);
 
   ws.onopen = () => {
     console.log("websocket connected");

@@ -2,6 +2,7 @@ import WebSocket from "ws";
 import { addToRoom, getRoom } from "../data/space.js";
 import { sendError } from "../utils/error.js";
 import { handleLeave } from "../utils/helpers.js";
+import { webRtcServer } from "../utils/mediaSoup.js";
 export const handleMessage = async (message, ws) => {
     const { type, msgId, data } = message;
     switch (type) {
@@ -71,7 +72,7 @@ export const handleMessage = async (message, ws) => {
             const room = getRoom(ws, roomId);
             const router = room?.router;
             const transport = await router?.createWebRtcTransport({
-                listenIps: [{ ip: "127.0.0.1", announcedIp: "127.0.0.1" }],
+                webRtcServer,
                 enableUdp: true,
                 enableTcp: true,
                 preferUdp: true,
