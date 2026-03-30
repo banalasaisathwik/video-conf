@@ -39,9 +39,8 @@ const Home = () => {
           </div>
         </header>
 
-        <section className="grid flex-1 gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-6 text-left shadow-2xl shadow-slate-950/10 sm:p-8">
+        <section className="flex flex-1 items-center justify-center">
+          <section className="w-full max-w-2xl rounded-[2rem] border border-slate-200 bg-white p-6 text-left shadow-2xl shadow-slate-950/10 sm:p-8">
             <div className="mb-8">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">
                 Join a room
