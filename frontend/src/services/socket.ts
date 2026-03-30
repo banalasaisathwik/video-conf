@@ -4,7 +4,25 @@ let isInitialized = false;
 
 const listeners = new Set<(data: any) => void>();
 const pendingRequests = new Map<string, (data: any) => void>();
-const url = import.meta.env.VITE_WEBSOCKET_URL
+
+function getWebSocketUrl() {
+  const configuredUrl = import.meta.env.VITE_WEBSOCKET_URL?.trim();
+
+  if (configuredUrl) {
+    if (configuredUrl.startsWith("http://")) {
+      return configuredUrl.replace("http://", "ws://");
+    }
+
+    if (configuredUrl.startsWith("https://")) {
+      return configuredUrl.replace("https://", "wss://");
+    }
+
+    return configuredUrl;
+  }
+
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${protocol}://${window.location.host}`;
+}
 
 export function connect() {
   if (isInitialized) {
@@ -15,7 +33,7 @@ export function connect() {
   isInitialized = true;
 
   console.log("CONNECT CALLED");
-
+  const url = getWebSocketUrl();
   ws = new WebSocket(url);
 
   ws.onopen = () => {

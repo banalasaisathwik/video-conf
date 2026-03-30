@@ -3,11 +3,7 @@ import { addToRoom, getRoom } from "../data/space.js";
 import type { BaseMessage, ExtendedWebSocket } from "../types/socket.js";
 import { sendError } from "../utils/error.js";
 import { handleLeave } from "../utils/helpers.js";
-
-const announcedIp =
-  process.env.MEDIASOUP_ANNOUNCED_IP ||
-  process.env.PUBLIC_HOST ||
-  (process.env.FLY_APP_NAME ? `${process.env.FLY_APP_NAME}.fly.dev` : undefined);
+import { webRtcServer } from "../utils/mediaSoup.js";
 
 export const handleMessage = async (
   message: BaseMessage,
@@ -108,11 +104,7 @@ export const handleMessage = async (
       const router = room?.router;
 
       const transport = await router?.createWebRtcTransport({
-        listenIps: [
-          announcedIp
-            ? { ip: "0.0.0.0", announcedIp }
-            : { ip: "0.0.0.0" },
-        ],
+        webRtcServer,
         enableUdp: true,
         enableTcp: true,
         preferUdp: true,
@@ -460,6 +452,7 @@ export const handleMessage = async (
           name:name ?? "error in finding name"
         }
       }))
+      break;
     }
     case "LEAVE_ROOM": {
       const { roomId } = data || {};
