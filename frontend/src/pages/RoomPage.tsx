@@ -7,7 +7,9 @@ import type {
   Producer,
   RtpCapabilities,
 } from "mediasoup-client/types";
-import type { Device, Consumer } from "mediasoup-client/types";
+import type { Consumer, Device } from "mediasoup-client/types";
+import { Chat } from "../component/Chat";
+import { RemoteVideo } from "../component/RemoteVideo";
 import { createDevice } from "../services/device";
 import {
   leaveRoom,
@@ -15,8 +17,6 @@ import {
   subscribe,
   unsubscribe,
 } from "../services/socket";
-import { RemoteVideo } from "../component/RemoteVideo";
-import { Chat } from "../component/Chat";
 
 interface CreateTransportResponse {
   id: string;
@@ -46,13 +46,36 @@ interface ChatMessage {
   isOwnMessage: boolean;
 }
 
+interface ParticipantLabelMap {
+  [peerId: string]: string;
+}
+
+function getParticipantLabel(
+  peerId: string,
+  index: number,
+  participantLabels: ParticipantLabelMap,
+) {
+  return participantLabels[peerId] || `Participant ${index + 1}`;
+}
+
+function getGridCols(count: number) {
+  if (count <= 1) return "xl:grid-cols-1";
+  if (count === 2) return "md:grid-cols-2";
+  if (count <= 4) return "md:grid-cols-2";
+  if (count <= 6) return "md:grid-cols-2 xl:grid-cols-3";
+  return "md:grid-cols-2 xl:grid-cols-4";
+}
+
 const RoomPage = () => {
   const { roomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const name = location.state?.name;
 
-  const [, setParticipants] = useState<string[]>([]);
+  const [participants, setParticipants] = useState<string[]>([]);
+  const [participantLabels, setParticipantLabels] = useState<ParticipantLabelMap>(
+    {},
+  );
   const [remoteStreams, setRemoteStreams] = useState<RemoteStreamItem[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
@@ -294,6 +317,7 @@ const RoomPage = () => {
     const handler = async (message: any) => {
       if (message.type === "NEW_PARTICIPANT") {
         const username = message.data?.username;
+        const peerId = message.data?.peerId;
         if (!username) {
           return;
         }
@@ -305,6 +329,13 @@ const RoomPage = () => {
 
           return [...prev, username];
         });
+
+        if (peerId) {
+          setParticipantLabels((prev) => ({
+            ...prev,
+            [peerId]: username,
+          }));
+        }
       }
 
       if (message.type === "PARTICIPANT_LEFT") {
@@ -330,6 +361,11 @@ const RoomPage = () => {
 
         setRemoteStreams((prev) => prev.filter((item) => item.id !== peerId));
         setParticipants((prev) => prev.filter((item) => item !== username));
+        setParticipantLabels((prev) => {
+          const nextLabels = { ...prev };
+          delete nextLabels[peerId];
+          return nextLabels;
+        });
       }
 
       if (message.type === "NEW_PRODUCER") {
@@ -411,6 +447,7 @@ const RoomPage = () => {
       peersRef.current.clear();
       setRemoteStreams([]);
       setChatMessages([]);
+      setParticipantLabels({});
     };
   }, [roomId, name]);
 
@@ -493,14 +530,13 @@ const RoomPage = () => {
     screenStreamRef.current?.getTracks().forEach((track) => track.stop());
     screenStreamRef.current = null;
     setIsScreenSharing(false);
-    return;
   }
 
   async function handleScreenShare() {
     if (!videoProducerRef.current) return;
 
     if (isScreenSharing) {
-      restartCamera();
+      await restartCamera();
     } else {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
@@ -509,7 +545,7 @@ const RoomPage = () => {
       const screenTrack = screenStreamRef.current.getVideoTracks()[0];
       if (!screenTrack) return;
       screenTrack.onended = () => {
-        restartCamera();
+        void restartCamera();
       };
       await videoProducerRef.current.replaceTrack({ track: screenTrack });
       setIsScreenSharing(true);
@@ -520,18 +556,15 @@ const RoomPage = () => {
     if (!roomId) {
       return;
     }
+
     localStreamRef.current?.getTracks().forEach((track) => {
       track.stop();
     });
-    localStreamRef.current?.getTracks().forEach((track) => {
-      track.stop();
-    });
+
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = null;
     }
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = null;
-    }
+
     localStreamRef.current = null;
     screenStreamRef.current = null;
     videoProducerRef.current = null;
@@ -544,108 +577,219 @@ const RoomPage = () => {
     return null;
   }
 
-  
-  function getGridCols(count: number) {
-    if (count <= 1) return "grid-cols-1";
-    if (count === 2) return "grid-cols-2";
-    if (count <= 4) return "grid-cols-2";
-    if (count <= 6) return "grid-cols-3";
-    return "grid-cols-4";
-  }
-
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 p-4 overflow-auto">
-          <div
-            className={`grid gap-4 h-full ${getGridCols(remoteStreams.length)}`}
-          >
-            {remoteStreams.map((item, index) => (
-              <div
-                key={item.id}
-                className="bg-white border rounded p-2 flex flex-col"
-              >
-                <p className="text-sm mb-2">
-                  getName(item.id) user-{index + 1}
-                </p>
-
-                <div className="flex-1 bg-black rounded overflow-hidden">
-                  <RemoteVideo
-                    stream={item.stream}
-                    isAudioEnabled={item.isAudioEnabled}
-                    isVideoEnabled={item.isVideoEnabled}
-                  />
-                </div>
-              </div>
-            ))}
+    <div className="min-h-screen bg-slate-950 text-white">
+      <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col px-3 py-3 sm:px-4 lg:px-6">
+        <header className="mb-3 flex flex-col gap-3 rounded-[1.75rem] border border-white/10 bg-white/5 px-4 py-4 backdrop-blur lg:flex-row lg:items-center lg:justify-between lg:px-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-300">
+              Meeting room
+            </p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              Room {roomId}
+            </h1>
+            <p className="mt-2 text-sm text-slate-300">
+              You are joined as {name}. The layout keeps controls, people, and
+              chat easy to scan during the call.
+            </p>
           </div>
-        </div>
 
-        <div className="w-[35%] border-l bg-white p-4 flex flex-col">
-          <div className="h-[40%] mb-4">
-            <p className="text-sm mb-2">You</p>
+          <div className="flex flex-wrap gap-2">
+            <div className="rounded-full border border-white/10 bg-white/10 px-3 py-2 text-sm text-slate-100">
+              {participants.length + 1} people in room
+            </div>
+            <div className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200">
+              {isScreenSharing ? "Screen sharing on" : "Camera layout active"}
+            </div>
+          </div>
+        </header>
 
-            <div className="h-full bg-black rounded overflow-hidden relative">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                muted
-                playsInline
-                className={`w-full h-full object-cover ${
-                  !isVideoEnabled || isScreenSharing ? "hidden" : ""
-                }`}
-              />
+        <div className="flex flex-1 flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_370px]">
+          <section className="flex min-h-[320px] flex-col rounded-[2rem] border border-white/10 bg-slate-900/70 p-3 shadow-2xl shadow-slate-950/40">
+            <div className="mb-3 flex items-center justify-between px-1">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Participants</h2>
+                <p className="text-sm text-slate-400">
+                  {remoteStreams.length > 0
+                    ? "Status labels make it obvious who is muted or off camera."
+                    : "You are the first one here right now."}
+                </p>
+              </div>
+              <div className="rounded-full bg-white/5 px-3 py-1 text-xs font-medium text-slate-300">
+                {remoteStreams.length} remote
+              </div>
+            </div>
 
-              {!isVideoEnabled && (
-                <div className="absolute inset-0 flex items-center justify-center text-white text-sm">
-                  Video Off
+            <div className="flex-1 overflow-auto">
+              {remoteStreams.length === 0 ? (
+                <div className="flex h-full min-h-[360px] flex-col items-center justify-center rounded-[1.75rem] border border-dashed border-white/10 bg-slate-950/50 px-6 text-center">
+                  <div className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200">
+                    Waiting room
+                  </div>
+                  <h3 className="mt-5 text-2xl font-semibold text-white">
+                    Waiting for others to join
+                  </h3>
+                  <p className="mt-3 max-w-md text-sm leading-6 text-slate-400">
+                    Your preview and chat are ready. Share the meeting ID and
+                    participants will appear here as they connect.
+                  </p>
                 </div>
-              )}
-              {isScreenSharing && (
-                <div className="absolute inset-0 flex items-center justify-center text-white text-sm">
-                  Screen Sharing
+              ) : (
+                <div className={`grid gap-3 ${getGridCols(remoteStreams.length)}`}>
+                  {remoteStreams.map((item, index) => {
+                    const participantLabel = getParticipantLabel(
+                      item.id,
+                      index,
+                      participantLabels,
+                    );
+
+                    return (
+                      <article
+                        key={item.id}
+                        className="flex min-h-[240px] flex-col rounded-[1.75rem] border border-white/10 bg-white/5 p-3 backdrop-blur"
+                      >
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-white">
+                              {participantLabel}
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              {item.isVideoEnabled
+                                ? "Video is on"
+                                : "Video is off"}
+                            </p>
+                          </div>
+                          <div className="rounded-full bg-slate-950/60 px-3 py-1 text-xs font-medium text-slate-300">
+                            {item.isAudioEnabled ? "Mic on" : "Mic muted"}
+                          </div>
+                        </div>
+
+                        <div className="flex-1">
+                          <RemoteVideo
+                            stream={item.stream}
+                            isAudioEnabled={item.isAudioEnabled}
+                            isVideoEnabled={item.isVideoEnabled}
+                            label={participantLabel}
+                          />
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               )}
             </div>
-          </div>
+          </section>
 
-          <div className="flex-1 overflow-hidden">
-            <Chat
-              messages={chatMessages}
-              onSendMessage={handleSendChatMessage}
-            />
-          </div>
+          <aside className="flex min-h-[320px] flex-col gap-3">
+            <section className="rounded-[2rem] border border-white/10 bg-white p-4 text-slate-900 shadow-2xl shadow-slate-950/20">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">You</h2>
+                  <p className="text-sm text-slate-500">
+                    Preview your current camera state
+                  </p>
+                </div>
+                <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                  {isAudioEnabled ? "Mic on" : "Mic off"}
+                </div>
+              </div>
+
+              <div className="relative h-[240px] overflow-hidden rounded-[1.75rem] bg-slate-950 sm:h-[280px]">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className={`h-full w-full object-cover ${
+                    !isVideoEnabled || isScreenSharing ? "hidden" : ""
+                  }`}
+                />
+
+                {!isVideoEnabled && !isScreenSharing && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-xl font-semibold">
+                      {name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-medium">{name}</p>
+                      <p className="text-xs text-slate-300">Your camera is off</p>
+                    </div>
+                  </div>
+                )}
+
+                {isScreenSharing && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white">
+                    <div className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                      Sharing
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-medium">Your screen is live</p>
+                      <p className="text-xs text-slate-300">
+                        Others can currently see the screen you selected.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-slate-950/90 via-slate-950/45 to-transparent px-4 py-3 text-sm text-white">
+                  <span>{name}</span>
+                  <span>{isVideoEnabled ? "Camera on" : "Camera off"}</span>
+                </div>
+              </div>
+            </section>
+
+            <div className="min-h-[320px] flex-1">
+              <Chat
+                messages={chatMessages}
+                onSendMessage={handleSendChatMessage}
+              />
+            </div>
+          </aside>
         </div>
-      </div>
 
-      <div className="h-[60px] bg-white border-t flex items-center justify-center gap-4">
-        <button
-          onClick={handleToggleVideo}
-          className="px-4 py-1 border rounded"
-        >
-          {isVideoEnabled ? "Stop Video" : "Start Video"}
-        </button>
+        <footer className="mt-3 rounded-[1.75rem] border border-white/10 bg-white/5 px-3 py-3 backdrop-blur">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+            <button
+              onClick={handleToggleVideo}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                isVideoEnabled
+                  ? "bg-white text-slate-900 hover:bg-slate-100"
+                  : "bg-amber-400 text-slate-950 hover:bg-amber-300"
+              }`}
+            >
+              {isVideoEnabled ? "Turn camera off" : "Turn camera on"}
+            </button>
 
-        <button
-          onClick={handleToggleAudio}
-          className="px-4 py-1 border rounded"
-        >
-          {isAudioEnabled ? "Mute" : "Unmute"}
-        </button>
+            <button
+              onClick={handleToggleAudio}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                isAudioEnabled
+                  ? "bg-white text-slate-900 hover:bg-slate-100"
+                  : "bg-amber-400 text-slate-950 hover:bg-amber-300"
+              }`}
+            >
+              {isAudioEnabled ? "Mute microphone" : "Unmute microphone"}
+            </button>
 
-        <button
-          onClick={handleScreenShare}
-          className="px-4 py-1 border rounded"
-        >
-          {isScreenSharing ? "Stop Share" : "Share Screen"}
-        </button>
+            <button
+              onClick={handleScreenShare}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                isScreenSharing
+                  ? "bg-cyan-400 text-slate-950 hover:bg-cyan-300"
+                  : "bg-slate-800 text-white hover:bg-slate-700"
+              }`}
+            >
+              {isScreenSharing ? "Stop sharing" : "Share screen"}
+            </button>
 
-        <button
-          onClick={handleLeave}
-          className="px-4 py-1 border rounded text-red-500"
-        >
-          Leave
-        </button>
+            <button
+              onClick={handleLeave}
+              className="rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-400"
+            >
+              Leave room
+            </button>
+          </div>
+        </footer>
       </div>
     </div>
   );
