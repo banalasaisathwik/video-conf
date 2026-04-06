@@ -302,7 +302,6 @@ const RoomPage = () => {
     const handler = async (message: any) => {
       if (message.type === "NEW_PARTICIPANT") {
         const username = message.data?.username;
-        const peerId = message.data?.peerId;
         if (!username) {
           return;
         }
