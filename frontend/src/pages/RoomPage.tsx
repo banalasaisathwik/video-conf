@@ -46,18 +46,6 @@ interface ChatMessage {
   isOwnMessage: boolean;
 }
 
-interface ParticipantLabelMap {
-  [peerId: string]: string;
-}
-
-function getParticipantLabel(
-  peerId: string,
-  index: number,
-  participantLabels: ParticipantLabelMap,
-) {
-  return participantLabels[peerId] || `Participant ${index + 1}`;
-}
-
 function getGridCols(count: number) {
   if (count <= 1) return "xl:grid-cols-1";
   if (count === 2) return "md:grid-cols-2";
@@ -73,9 +61,6 @@ const RoomPage = () => {
   const name = location.state?.name;
 
   const [participants, setParticipants] = useState<string[]>([]);
-  const [participantLabels, setParticipantLabels] = useState<ParticipantLabelMap>(
-    {},
-  );
   const [remoteStreams, setRemoteStreams] = useState<RemoteStreamItem[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
@@ -329,13 +314,6 @@ const RoomPage = () => {
 
           return [...prev, username];
         });
-
-        if (peerId) {
-          setParticipantLabels((prev) => ({
-            ...prev,
-            [peerId]: username,
-          }));
-        }
       }
 
       if (message.type === "PARTICIPANT_LEFT") {
@@ -361,11 +339,6 @@ const RoomPage = () => {
 
         setRemoteStreams((prev) => prev.filter((item) => item.id !== peerId));
         setParticipants((prev) => prev.filter((item) => item !== username));
-        setParticipantLabels((prev) => {
-          const nextLabels = { ...prev };
-          delete nextLabels[peerId];
-          return nextLabels;
-        });
       }
 
       if (message.type === "NEW_PRODUCER") {
@@ -447,7 +420,6 @@ const RoomPage = () => {
       peersRef.current.clear();
       setRemoteStreams([]);
       setChatMessages([]);
-      setParticipantLabels({});
     };
   }, [roomId, name]);
 
@@ -592,8 +564,7 @@ const RoomPage = () => {
               Room {roomId}
             </h1>
             <p className="mt-2 text-sm text-slate-300">
-              You are joined as {name}. The layout keeps controls, people, and
-              chat easy to scan during the call.
+              You are joined as {name}.
             </p>
           </div>
 
@@ -602,7 +573,7 @@ const RoomPage = () => {
               {participants.length + 1} people in room
             </div>
             <div className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200">
-              {isScreenSharing ? "Screen sharing on" : "Camera layout active"}
+              {isScreenSharing ? "Screen sharing on" : "Camera video active"}
             </div>
           </div>
         </header>
@@ -612,14 +583,9 @@ const RoomPage = () => {
             <div className="mb-3 flex items-center justify-between px-1">
               <div>
                 <h2 className="text-lg font-semibold text-white">Participants</h2>
-                <p className="text-sm text-slate-400">
-                  {remoteStreams.length > 0
-                    ? "Status labels make it obvious who is muted or off camera."
-                    : "You are the first one here right now."}
-                </p>
               </div>
               <div className="rounded-full bg-white/5 px-3 py-1 text-xs font-medium text-slate-300">
-                {remoteStreams.length} remote
+                {remoteStreams.length} remote streams
               </div>
             </div>
 
@@ -632,19 +598,12 @@ const RoomPage = () => {
                   <h3 className="mt-5 text-2xl font-semibold text-white">
                     Waiting for others to join
                   </h3>
-                  <p className="mt-3 max-w-md text-sm leading-6 text-slate-400">
-                    Your preview and chat are ready. Share the meeting ID and
-                    participants will appear here as they connect.
-                  </p>
+                  
                 </div>
               ) : (
                 <div className={`grid gap-3 ${getGridCols(remoteStreams.length)}`}>
                   {remoteStreams.map((item, index) => {
-                    const participantLabel = getParticipantLabel(
-                      item.id,
-                      index,
-                      participantLabels,
-                    );
+                    const participantLabel = `Participant ${index + 1}`;
 
                     return (
                       <article
@@ -688,9 +647,7 @@ const RoomPage = () => {
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">You</h2>
-                  <p className="text-sm text-slate-500">
-                    Preview your current camera state
-                  </p>
+                
                 </div>
                 <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
                   {isAudioEnabled ? "Mic on" : "Mic off"}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import {useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const Home = () => {
@@ -7,17 +7,13 @@ const Home = () => {
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
-  const isJoinDisabled = useMemo(
-    () => !roomId.trim() || !name.trim(),
-    [name, roomId],
-  );
+  const isJoinDisabled = !roomId.trim() || !name.trim();
 
   function handleJoin() {
     if (isJoinDisabled) {
       setError("Enter your name and meeting ID before joining.");
       return;
     }
-
     setError("");
     navigate(`/room/${roomId.trim()}`, { state: { name: name.trim() } });
   }
@@ -27,15 +23,9 @@ const Home = () => {
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
         <header className="mb-8 flex items-center justify-between rounded-full border border-white/10 bg-white/5 px-4 py-3 backdrop-blur sm:px-6">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">
+            <p className="text-xs justify-items-center font-semibold uppercase tracking-[0.3em] text-cyan-300">
               Zoom Clone
             </p>
-            <p className="text-sm text-slate-300">
-              Clear meeting access for every guest
-            </p>
-          </div>
-          <div className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
-            Ready to join
           </div>
         </header>
 
@@ -45,12 +35,9 @@ const Home = () => {
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">
                 Join a room
               </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
-                Start with the basics
-              </h2>
+
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Use the exact meeting ID shared with you. Your name will be shown
-                to other participants inside the room.
+                Use the same meeting ID as your friend.
               </p>
             </div>
 
@@ -67,7 +54,7 @@ const Home = () => {
                       setError("");
                     }
                   }}
-                  placeholder="Example: team-sync-204"
+                  placeholder="Example: 204(anything-random string)"
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100"
                 />
               </label>
@@ -84,18 +71,10 @@ const Home = () => {
                       setError("");
                     }
                   }}
-                  placeholder="What should others call you?"
+                  placeholder="how others see you"
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100"
                 />
               </label>
-            </div>
-
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm font-medium text-slate-800">Before you join</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Make sure your camera and microphone permissions are enabled when
-                your browser asks for access.
-              </p>
             </div>
 
             {error ? (
@@ -111,10 +90,6 @@ const Home = () => {
             >
               Join meeting
             </button>
-
-            <p className="mt-4 text-center text-xs leading-5 text-slate-500">
-              You will enter the room immediately after joining.
-            </p>
           </section>
         </section>
       </div>

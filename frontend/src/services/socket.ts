@@ -44,11 +44,11 @@ export function connect() {
 ws.onmessage = (event) => {
   const message = JSON.parse(event.data);
 
-  console.log("RAW MESSAGE:", message);
+  // console.log("RAW MESSAGE:", message);
 
   if (message.msgId && pendingRequests.has(message.msgId)) {
-    const resolve = pendingRequests.get(message.msgId);
-    resolve?.(message.data);
+    const resolveFn = pendingRequests.get(message.msgId);
+    resolveFn?.(message.data);
     pendingRequests.delete(message.msgId);
   } 
   else {
